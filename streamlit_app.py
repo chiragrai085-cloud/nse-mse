@@ -5,7 +5,9 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 
-st.set_page_config(page_title="NSE Terminal", page_icon="ðŸ“ˆ", layout="wide")
+RUPEE = "\u20b9"
+
+st.set_page_config(page_title="NSE Terminal", layout="wide")
 st.markdown("""
 <style>
 :root {
@@ -41,7 +43,7 @@ hr { border-color: #e5e7eb; }
 [data-testid="stMetricDelta"] { font-weight: 600; }
 </style>
 """, unsafe_allow_html=True)
-st.title("ðŸ“ˆ NSE Terminal")
+st.title("NSE Terminal")
 st.caption("NSE stock research dashboard | Charts, indicators, portfolio, fundamentals, risk and backtesting")
 st.info("Educational tool only. Historical data and simulations cannot guarantee future prices. Not financial advice.")
 
@@ -178,7 +180,7 @@ def add_indicators(df):
     return d
 
 def money(x):
-    try: return f"â‚¹{float(x):,.2f}" if pd.notna(x) and np.isfinite(float(x)) else "N/A"
+    try: return f"{RUPEE}{float(x):,.2f}" if pd.notna(x) and np.isfinite(float(x)) else "N/A"
     except Exception: return "N/A"
 
 with st.sidebar:
@@ -306,10 +308,10 @@ with tabs[3]:
     c=st.columns(4); c[0].metric("Current price",money(price)); c[1].metric("Simulated outcomes above",f"{up:.1f}%"); c[2].metric("Simulated outcomes below",f"{down:.1f}%"); c[3].metric("Median scenario",money(p50))
     scenario=pd.DataFrame({"Scenario":["Pessimistic 5th percentile","Lower-middle 25th","Median 50th","Upper-middle 75th","Optimistic 95th percentile"],"Price":[p5,p25,p50,p75,p95]})
     scenario["Change (%)"]=(scenario.Price/price-1)*100
-    st.dataframe(scenario.style.format({"Price":"â‚¹{:,.2f}","Change (%)":"{:+.2f}%"}),use_container_width=True,hide_index=True)
+    st.dataframe(scenario.style.format({"Price":RUPEE+"{:,.2f}","Change (%)":"{:+.2f}%"}),use_container_width=True,hide_index=True)
     q5,q50,q95=np.percentile(paths,[5,50,95],axis=0); days=np.arange(1,horizon+1); fig=go.Figure()
     fig.add_trace(go.Scatter(x=days,y=q95,name="95th percentile")); fig.add_trace(go.Scatter(x=days,y=q50,name="Median")); fig.add_trace(go.Scatter(x=days,y=q5,name="5th percentile",fill="tonexty"))
-    fig.update_layout(template="plotly_white",height=400,title="Simulated price ranges",xaxis_title="Trading days ahead",yaxis_title="Price (â‚¹)")
+    fig.update_layout(template="plotly_white",height=400,title="Simulated price ranges",xaxis_title="Trading days ahead",yaxis_title=f"Price ({RUPEE})")
     st.plotly_chart(fig,use_container_width=True)
     st.warning("Monte Carlo simulation based on historical returns, not a trained AI forecast. Probabilities are not calibrated real-world odds; actual prices may fall outside these scenarios.")
 
@@ -328,7 +330,7 @@ with tabs[4]:
 
 with tabs[5]:
     st.subheader("Compare stocks")
-    syms=st.text_input("2â€“5 NSE tickers, comma-separated","RELIANCE,TCS,INFY")
+    syms=st.text_input("2-5 NSE tickers, comma-separated","RELIANCE,TCS,INFY")
     cp=st.selectbox("Comparison period",["6mo","1y","2y","5y"],index=1)
     if st.button("Compare selected stocks"):
         series={}
@@ -353,7 +355,7 @@ with tabs[6]:
             a,b,c=st.columns(3)
             s=a.text_input("Ticker",["RELIANCE","TCS","INFY"][i],key=f"ps{i}").strip().upper()
             qty=b.number_input("Quantity",min_value=0.0,value=1.0,key=f"pq{i}")
-            buy=c.number_input("Buy price â‚¹",min_value=0.0,value=100.0,key=f"pb{i}")
+            buy=c.number_input(f"Buy price {RUPEE}",min_value=0.0,value=100.0,key=f"pb{i}")
             if s and qty>0:
                 try:
                     h=history(s,"5d")
@@ -375,7 +377,7 @@ with tabs[7]:
         val=info.get(key)
         if val is not None:
             if key in ["returnOnEquity","profitMargins","revenueGrowth","dividendYield"]: val=f"{val*100:.2f}%"
-            elif key=="marketCap": val=f"â‚¹{val:,.0f}"
+            elif key=="marketCap": val=f"{RUPEE}{val:,.0f}"
             profile_rows.append({"Metric":label,"Value":val})
     if profile_rows:
         st.markdown("#### Company profile and valuation")
@@ -413,7 +415,7 @@ with tabs[8]:
 
 
 with tabs[9]:
-    st.subheader("ðŸ§ª Strategy Backtesting")
+    st.subheader("Strategy Backtesting")
     st.write("Test a rule-based strategy on the selected stock's historical data. Signals are generated from completed-day data and positions are applied from the next trading day to reduce look-ahead bias.")
     if len(df) < 80:
         st.warning("Not enough historical data for a meaningful backtest. Select a longer historical period.")
@@ -425,7 +427,7 @@ with tabs[9]:
         direction = st.selectbox("Trading mode", ["Long only", "Long / short (simplified)"])
         fee_bps = st.slider("Estimated transaction cost per position change (basis points)", 0, 50, 10, 1,
                             help="10 basis points = 0.10%. This is a simplified cost assumption, not your exact brokerage/taxes.")
-        starting_cash = st.number_input("Starting capital (â‚¹)", min_value=1000, max_value=100000000, value=100000, step=10000)
+        starting_cash = st.number_input(f"Starting capital ({RUPEE})", min_value=1000, max_value=100000000, value=100000, step=10000)
 
         bt = df.copy().dropna(subset=["Close"])
         close = bt["Close"]
@@ -479,7 +481,7 @@ with tabs[9]:
         chart = go.Figure()
         chart.add_trace(go.Scatter(x=equity.index, y=equity, name="Strategy equity"))
         chart.add_trace(go.Scatter(x=benchmark.index, y=benchmark, name="Market benchmark"))
-        chart.update_layout(title="Equity curve", xaxis_title="Date", yaxis_title="Portfolio value (â‚¹)", template="plotly_white", height=430)
+        chart.update_layout(title="Equity curve", xaxis_title="Date", yaxis_title=f"Portfolio value ({RUPEE})", template="plotly_white", height=430)
         st.plotly_chart(chart, use_container_width=True)
         ddfig = go.Figure(go.Scatter(x=drawdown.index, y=drawdown*100, name="Drawdown %", fill="tozeroy"))
         ddfig.update_layout(title="Strategy drawdown", xaxis_title="Date", yaxis_title="Drawdown (%)", template="plotly_white", height=300)
@@ -496,15 +498,15 @@ with tabs[9]:
 
 
 with tabs[10]:
-    st.subheader(f"ðŸ“Š Swing Trading Signal Analysis: {symbol}")
+    st.subheader(f"Swing Trading Signal Analysis: {symbol}")
     st.caption("Technical setup assessment based on daily historical data. It does not issue BUY/HOLD/SELL instructions or suggest a holding period.")
     latest = df.iloc[-1]
     checks = [
         ("Trend: EMA 20 above EMA 50", latest["EMA 20"] > latest["EMA 50"]),
         ("Price above SMA 50", pd.notna(latest["SMA 50"]) and price > latest["SMA 50"]),
         ("MACD above signal line", latest["MACD"] > latest["MACD Signal"]),
-        ("RSI in positive momentum zone (50â€“70)", pd.notna(latest["RSI 14"]) and 50 <= latest["RSI 14"] <= 70),
-        ("ADX indicates trend strength (â‰¥ 20)", pd.notna(latest["ADX 14"]) and latest["ADX 14"] >= 20),
+        ("RSI in positive momentum zone (50-70)", pd.notna(latest["RSI 14"]) and 50 <= latest["RSI 14"] <= 70),
+        ("ADX indicates trend strength (>= 20)", pd.notna(latest["ADX 14"]) and latest["ADX 14"] >= 20),
         ("12-day rate of change is positive", pd.notna(latest["ROC 12"]) and latest["ROC 12"] > 0),
         ("Volume above 20-day average", pd.notna(latest["Volume SMA 20"]) and latest["Volume"] > latest["Volume SMA 20"]),
     ]
